@@ -7,7 +7,9 @@ import {
   ENSRegistry,
   FIFSRegistrar,
   PublicResolver,
+  PublicResolver__factory,
   ReverseRegistrar,
+  ReverseRegistrar__factory,
 } from "../typechain-types";
 import { expect } from "chai";
 
@@ -98,5 +100,27 @@ describe("Given a deployed registry", () => {
     // get resolver
     const resolverAddress = await ens.resolver(namehash.hash(domain));
     expect(resolverAddress).to.equal(resolver.address);
+
+    // get reverse registrar and set reverse resolver
+    const reverseRegistrarAddress = await ens.owner(namehash.hash("reverse"));
+    const reverseRegistrar = ReverseRegistrar__factory.connect(
+      reverseRegistrarAddress,
+      signers[0]
+    );
+    await reverseRegistrar.setName(domain);
+
+    // get reverse resolver
+    const reverseResolverAddress = await ens.resolver(
+      namehash.hash(accounts[0])
+    );
+    expect(reverseRegistrarAddress).not.equal(ZERO_ADDRESS);
+    const reverseResolver = PublicResolver__factory.connect(
+      reverseResolverAddress,
+      signers[0]
+    );
+    const address = await reverseResolver.name(
+      namehash.hash(accounts[0].substring(2) + ".addr.reverse")
+    );
+    expect(address).to.equal(domain);
   });
 });

@@ -1,4 +1,4 @@
-import { Contract, Signer } from "ethers";
+import { Contract } from "ethers";
 
 import hre from "hardhat";
 //@ts-ignore
@@ -13,6 +13,7 @@ const labelhash = (label: string) => utils.keccak256(utils.toUtf8Bytes(label));
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const ZERO_HASH =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
+
 async function main() {
   const ENSRegistry = await ethers.getContractFactory("ENSRegistry");
   const FIFSRegistrar = await ethers.getContractFactory("FIFSRegistrar");

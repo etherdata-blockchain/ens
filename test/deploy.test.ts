@@ -2,16 +2,14 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { ethers } from "hardhat";
 //@ts-ignore
 import namehash from "@ensdomains/eth-ens-namehash";
-import { Contract } from "ethers";
+import { expect } from "chai";
 import {
+  DefaultReverseResolver,
   ENSRegistry,
   FIFSRegistrar,
   PublicResolver,
-  PublicResolver__factory,
   ReverseRegistrar,
-  ReverseRegistrar__factory,
 } from "../typechain-types";
-import { expect } from "chai";
 
 const tld = "test";
 const utils = ethers.utils;
@@ -34,8 +32,8 @@ async function setupRegistrar(ens: ENSRegistry, registrar: any) {
 
 async function setupReverseRegistrar(
   ens: ENSRegistry,
-  registrar: Contract,
-  reverseRegistrar: Contract,
+  resolver: DefaultReverseResolver,
+  reverseRegistrar: ReverseRegistrar,
   accounts: string[]
 ) {
   await ens.setSubnodeOwner(ZERO_HASH, labelhash("reverse"), accounts[0]);
@@ -44,12 +42,14 @@ async function setupReverseRegistrar(
     labelhash("addr"),
     reverseRegistrar.address
   );
+  await reverseRegistrar.setDefaultResolver(resolver.address);
 }
 
 describe("Given a deployed registry", () => {
   let ens: ENSRegistry;
   let registrar: FIFSRegistrar;
   let reverseRegistrar: ReverseRegistrar;
+  let reverseResolver: DefaultReverseResolver;
   let resolver: PublicResolver;
   let signers: SignerWithAddress[];
   let accounts: string[];
@@ -58,9 +58,13 @@ describe("Given a deployed registry", () => {
     const ENSRegistry = await ethers.getContractFactory("ENSRegistry");
     const FIFSRegistrar = await ethers.getContractFactory("FIFSRegistrar");
     const ReverseRegistrar = await ethers.getContractFactory(
-      "ReverseRegistrar"
+      "ReverseTestRegistrar"
     );
     const PublicResolver = await ethers.getContractFactory("PublicResolver");
+    const ReverseResolver = await ethers.getContractFactory(
+      "DefaultReverseResolver"
+    );
+
     signers = await ethers.getSigners();
     accounts = signers.map((s: SignerWithAddress) => s.address);
 
@@ -76,16 +80,31 @@ describe("Given a deployed registry", () => {
     await resolver.deployed();
     await setupResolver(ens, resolver, accounts);
 
+    reverseResolver = await ReverseResolver.deploy(ens.address);
+
     registrar = await FIFSRegistrar.deploy(ens.address, namehash.hash(tld));
     await registrar.deployed();
     await setupRegistrar(ens, registrar);
 
     reverseRegistrar = await ReverseRegistrar.deploy(ens.address);
     await reverseRegistrar.deployed();
-    await setupReverseRegistrar(ens, registrar, reverseRegistrar, accounts);
+    await setupReverseRegistrar(
+      ens,
+      reverseResolver,
+      reverseRegistrar,
+      accounts
+    );
   });
 
-  it("Test register a domain", async () => {
+  it("Test registering a domain", async () => {
+    console.log();
+    console.log("Public resolver", resolver.address);
+    console.log("Registrar", registrar.address);
+    console.log("Reverse registrar", reverseRegistrar.address);
+    console.log("ENS", ens.address);
+    console.log("Account", accounts[0]);
+    console.log();
+
     // register a domain
     const domain = `mydomain.${tld}`;
     await registrar.register(labelhash("mydomain"), accounts[0]);
@@ -102,25 +121,18 @@ describe("Given a deployed registry", () => {
     expect(resolverAddress).to.equal(resolver.address);
 
     // get reverse registrar and set reverse resolver
-    const reverseRegistrarAddress = await ens.owner(namehash.hash("reverse"));
-    const reverseRegistrar = ReverseRegistrar__factory.connect(
-      reverseRegistrarAddress,
-      signers[0]
-    );
     await reverseRegistrar.setName(domain);
 
     // get reverse resolver
+    const reversedNaming =
+      accounts[0].substring(2).toLocaleLowerCase() + ".addr.reverse";
     const reverseResolverAddress = await ens.resolver(
-      namehash.hash(accounts[0])
+      namehash.hash(reversedNaming)
     );
-    expect(reverseRegistrarAddress).not.equal(ZERO_ADDRESS);
-    const reverseResolver = PublicResolver__factory.connect(
-      reverseResolverAddress,
-      signers[0]
-    );
-    const address = await reverseResolver.name(
-      namehash.hash(accounts[0].substring(2) + ".addr.reverse")
-    );
-    expect(address).to.equal(domain);
+    console.log("reverse resolver", reverseResolverAddress);
+    expect(reverseResolverAddress).to.equal(reverseResolver.address);
+
+    const result = await reverseResolver.name(namehash.hash(accounts[0]));
+    expect(result).to.equal(domain);
   });
 });

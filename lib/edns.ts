@@ -10,7 +10,7 @@ import {
   PublicResolver__factory,
   ReverseRegistrar,
   ReverseRegistrar__factory,
-} from "./typechain-types";
+} from "../typechain-types";
 
 interface ResolverResult {
   node: string;
@@ -145,6 +145,7 @@ export class EDNS {
       reverseRegistrar: reverseRegistrar.address,
     };
   }
+
 
   private normalizeName(name: string) {
     const normalizedName = name.toLowerCase();

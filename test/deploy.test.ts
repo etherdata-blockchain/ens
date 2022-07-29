@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { EDNS } from "../edns";
+import { EDNS } from "../lib/edns";
 
 describe("Given a deployed registry", () => {
   let edns: EDNS;

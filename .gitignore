@@ -33,3 +33,6 @@ typechain-types
 cache
 artifacts
 
+# compiled files
+dist
+*.address.json
